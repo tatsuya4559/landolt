@@ -7,6 +7,7 @@
     onMount(() => {});
 
     let container: HTMLDivElement;
+    let workflowName: string = "";
     let yamlCode: string = "";
     let mermaidCode: string = "";
     const mermaidConfig: MermaidConfig = {
@@ -16,8 +17,7 @@
 
     function yamlToMermaid(yml: any): string {
         let converted = ["flowchart LR"];
-        // FIXME: check_all only
-        for (const job of yml.workflows.check_all.jobs) {
+        for (const job of yml.workflows[workflowName].jobs) {
             const jobId = Object.keys(job)[0];
             const jobConfig = job[jobId];
             const jobName = jobConfig.name ?? jobId;
@@ -32,10 +32,10 @@
         return converted.join("\n");
     }
 
-    async function onYamlChanged() {
+    async function onChanged() {
         const yml = YAML.parse(yamlCode);
         mermaidCode = yamlToMermaid(yml);
-        console.log(mermaidCode)
+        console.log(mermaidCode);
 
         const graphDiv = document.getElementById("graph-div");
         const { svg, bindFunctions } = await renderDiagram(
@@ -59,15 +59,27 @@
     }
 </script>
 
+<label
+    >workflow:
+    <input
+        bind:value={workflowName}
+        placeholder="workflow name to visualize"
+        on:change={onChanged}
+    /></label
+>
 <textarea
     bind:value={yamlCode}
-    on:change={onYamlChanged}
+    on:change={onChanged}
     placeholder="Paste your config.yml here"
 />
 
 <div bind:this={container} />
 
 <style>
+    input {
+        width: 20em;
+        margin-bottom: 1em;
+    }
     textarea {
         width: 100%;
         height: 200px;
