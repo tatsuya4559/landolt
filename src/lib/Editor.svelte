@@ -1,13 +1,12 @@
 <script lang="ts">
-    import { onMount } from "svelte";
     import YAML from "yaml";
     import { render as renderDiagram } from "./utils/mermaid";
     import type { MermaidConfig } from "mermaid";
-
-    onMount(() => {});
+    import { Job } from "./utils/job";
 
     let container: HTMLDivElement;
     let workflowName: string = "";
+    let branchOrTag: string = "dev";
     let yamlCode: string = "";
     let mermaidCode: string = "";
     const mermaidConfig: MermaidConfig = {
@@ -16,19 +15,19 @@
     };
 
     function yamlToMermaid(yml: any): string {
+        console.log(yml.workflows[workflowName].jobs)
+        const availableJobs: Job[] = yml.workflows[workflowName].jobs //
+            .map((j) => Job.fromConfig(j)) //
+            .filter(job => job.runOnBranchOrTag(branchOrTag));
+
+        // requiresがavailableに存在しないJobを連鎖的に消していく
+
         let converted = ["flowchart LR"];
-        for (const job of yml.workflows[workflowName].jobs) {
-            const jobId = Object.keys(job)[0];
-            const jobConfig = job[jobId];
-            const jobName = jobConfig.name ?? jobId;
-            converted.push(`    ${jobName}`);
-            if (!Object.hasOwn(jobConfig, "requires")) {
-                continue;
-            }
-            for (const r of jobConfig.requires) {
-                converted.push(`    ${r} --> ${jobName}`);
-            }
-        }
+        availableJobs.forEach(job => {
+            console.log(job)
+            converted.push(...job.toMermaid())
+        })
+
         return converted.join("\n");
     }
 
@@ -65,8 +64,16 @@
         bind:value={workflowName}
         placeholder="workflow name to visualize"
         on:change={onChanged}
-    /></label
->
+    />
+</label>
+<label
+    >branch or tag:
+    <input
+        bind:value={branchOrTag}
+        placeholder="branch or tag name"
+        on:change={onChanged}
+    />
+</label>
 <textarea
     bind:value={yamlCode}
     on:change={onChanged}
