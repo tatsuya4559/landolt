@@ -22,7 +22,7 @@ type Ignore = {
 
 export class Job {
     constructor(
-        public id: string,
+        public name: string,
         public requires: Set<string>,
         private filterBranches: Branches,
         private filterTags: Tags,
@@ -34,15 +34,18 @@ export class Job {
         }
         const jobId = Object.keys(conf)[0];
         const jobConfig = conf[jobId];
-        const id = jobConfig.name ?? jobId;
+        const name = jobConfig.name ?? jobId;
         const requires = new Set(jobConfig.requires ?? []);
-        const filterBranches = jobConfig.filters?.branches ?? {}
-        const filterTags = jobConfig.filters?.tags ?? {}
-        return new Job(id, requires, filterBranches, filterTags);
+        const filterBranches = jobConfig.filters ?? {}
+        const filterTags = jobConfig.filters ?? {}
+        return new Job(name, requires, filterBranches, filterTags);
     }
 
     public runOnBranchOrTag(branchOrTag: string): boolean {
-        return this.runOnBranch(branchOrTag) || this.runOnTag(branchOrTag)
+        if (this.name === 'precompile_assets') {
+            console.log(this, this.runOnBranch(branchOrTag), this.runOnTag(branchOrTag))
+        }
+        return this.runOnBranch(branchOrTag) && this.runOnTag(branchOrTag)
     }
 
     private runOnBranch(branch: string): boolean {
@@ -54,11 +57,12 @@ export class Job {
             if (typeof only === 'string') {
                 return match(only, branch)
             }
-                for (const o of only) {
-                    if (match(o, branch)) {
-                        return true
-                    }
+            for (const o of only) {
+                if (match(o, branch)) {
+                    return true
                 }
+            }
+            return false
         }
         if ('ignore' in this.filterBranches.branches) {
             const ignore = this.filterBranches.branches.ignore
@@ -70,6 +74,7 @@ export class Job {
                     return false;
                 }
             }
+            return true
         }
         return false;
     }
@@ -81,13 +86,14 @@ export class Job {
         if ('only' in this.filterTags.tags) {
             const only = this.filterTags.tags.only
             if (typeof only === 'string') {
-                return match(only, taa)
+                return match(only, tag)
             }
-                for (const o of only) {
-                    if (match(o, tag)) {
-                        return true
-                    }
+            for (const o of only) {
+                if (match(o, tag)) {
+                    return true
                 }
+            }
+            return false
         }
         if ('ignore' in this.filterTags.tags) {
             const ignore = this.filterTags.tags.ignore
@@ -99,13 +105,14 @@ export class Job {
                     return false;
                 }
             }
+            return true
         }
         return false;
     }
 
     public toMermaid(): string[] {
-        const result = [`    ${this.id}`]
-        this.requires.forEach(r => result.push(`    ${r} --> ${this.id}`))
+        const result = [`    ${this.name}`]
+        this.requires.forEach(r => result.push(`    ${r} --> ${this.name}`))
         return result
     }
 }

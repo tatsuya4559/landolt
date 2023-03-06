@@ -3,6 +3,7 @@
     import { render as renderDiagram } from "./utils/mermaid";
     import type { MermaidConfig } from "mermaid";
     import { Job } from "./utils/job";
+    import { Graph } from "./utils/graph";
 
     let container: HTMLDivElement;
     let workflowName: string = "";
@@ -15,18 +16,27 @@
     };
 
     function yamlToMermaid(yml: any): string {
-        console.log(yml.workflows[workflowName].jobs)
-        const availableJobs: Job[] = yml.workflows[workflowName].jobs //
-            .map((j) => Job.fromConfig(j)) //
-            .filter(job => job.runOnBranchOrTag(branchOrTag));
+        const jobs: Job[] = yml.workflows[workflowName].jobs.map(job => Job.fromConfig(job))
 
-        // requiresがavailableに存在しないJobを連鎖的に消していく
+        const graph = new Graph<Job>();
+        jobs.forEach((job) => graph.addNode(job.name, job));
+        jobs.forEach((job) => {
+            job.requires.forEach(req => {
+                graph.addEdge(req, job.name)
+            })
+        });
+        console.log(graph.nodes);
+        graph.nodes.forEach(node => {
+            console.log(`${node.id}: ${node.data.runOnBranchOrTag(branchOrTag)}`);
+            if (!node.data.runOnBranchOrTag(branchOrTag)) {
+                graph.removeNode(node.id)
+            }
+        })
 
         let converted = ["flowchart LR"];
-        availableJobs.forEach(job => {
-            console.log(job)
-            converted.push(...job.toMermaid())
-        })
+        graph.nodes.forEach((node) => {
+            converted.push(...node.data.toMermaid());
+        });
 
         return converted.join("\n");
     }
@@ -58,6 +68,7 @@
     }
 </script>
 
+<dev class="flex">
 <label
     >workflow:
     <input
@@ -73,7 +84,7 @@
         placeholder="branch or tag name"
         on:change={onChanged}
     />
-</label>
+</label></dev>
 <textarea
     bind:value={yamlCode}
     on:change={onChanged}
@@ -83,6 +94,10 @@
 <div bind:this={container} />
 
 <style>
+    .flex {
+        display: flex;
+        justify-content: space-around;
+    }
     input {
         width: 20em;
         margin-bottom: 1em;
